@@ -10,6 +10,7 @@ import java.util.Locale;
 import com.pinggusoft.bthud.ColorPickerDialog.OnColorChangedListener;
 import com.pinggusoft.device.BTSerialPort;
 import com.pinggusoft.device.CNKHud;
+import com.pinggusoft.device.DisplayLED;
 import com.pinggusoft.device.SerialPort;
 
 import android.os.Bundle;
@@ -48,11 +49,10 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
     static final private int        GET_OPEN      = 1;
     static final private int        GET_SAVE      = 2;
 
-    private HashMap<String, String> mFontList;
-    private ArrayAdapter<String>    mFontListAdapter;
-    private Spinner                 mFontSpinner;
-    private LedSignView             mBannerView;
-    private int                     mIntZoomFont  = 16;
+    private HashMap<String, String> mHashFonts;
+    private ArrayAdapter<String>    mArrayAdapterFont;
+    private Spinner                 mSpinnerFont;
+    private LedSignView             mViewBanner;
     private int                     mFontSelIdx   = 0;
     private boolean                 mBoolPlay     = false;
 
@@ -66,9 +66,12 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
 
         mApp = (BTLedSignApp) getApplication();
         setContentView(R.layout.btledsign_main);
-        mBannerView = (LedSignView) findViewById(R.id.ViewBanner);
-        mBannerView.setApplication(mApp);
-
+        mViewBanner = (LedSignView) findViewById(R.id.ViewBanner);
+        mViewBanner.setDisplay(mApp.getDisplay());
+        
+        //Intent i = new Intent(this, TMAPLinkage.class);
+        //startService(i);
+        
         SeekBar speedBar = (SeekBar) findViewById(R.id.seekBarSpeed);
         if (speedBar != null) {
             speedBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -90,7 +93,7 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                     mIntPlaySpeed = progress;
-                    mBannerView.setPlaySpeed(mIntPlaySpeed);
+                    mViewBanner.setPlaySpeed(mIntPlaySpeed);
                     Log.d(TAG, "H3 " + mIntPlaySpeed);
 
                     if (mBTConnected) {
@@ -106,37 +109,33 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
         }
 
         // Font List
-        mFontList = FontManager.enumerateFonts();
+        mHashFonts = FontManager.enumerateFonts();
 
-        if (mFontList != null) {
-            Iterator<String> s = mFontList.keySet().iterator();
-            mFontSpinner = (Spinner) findViewById(R.id.SpinnerFont);
-            if (mFontSpinner != null) {
+        if (mHashFonts != null) {
+            Iterator<String> s = mHashFonts.keySet().iterator();
+            mSpinnerFont = (Spinner) findViewById(R.id.SpinnerFont);
+            if (mSpinnerFont != null) {
                 //mFontSelIdx = mFontSpinner.getSelectedItemPosition();
-                mFontListAdapter = new ArrayAdapter<String>(this, R.layout.font_list);
-                if (mFontListAdapter != null) {
-                    mFontSpinner.setAdapter(mFontListAdapter);
+                mArrayAdapterFont = new ArrayAdapter<String>(this, R.layout.font_list);
+                if (mArrayAdapterFont != null) {
+                    mSpinnerFont.setAdapter(mArrayAdapterFont);
                     String strFontFile;
                     while (s.hasNext()) {
                         strFontFile = s.next();
                         //Log.d("TEST", ">>>" + strFontFile + " : " + mFontList.get(strFontFile));
-                        mFontListAdapter.add(strFontFile);
+                        mArrayAdapterFont.add(strFontFile);
                     }
-                    mFontListAdapter.sort(null);
-                    mFontSpinner.setOnItemSelectedListener(new OnItemSelectedListener() {
+                    mArrayAdapterFont.sort(null);
+                    mSpinnerFont.setOnItemSelectedListener(new OnItemSelectedListener() {
                         public void onItemSelected(AdapterView<?> parent, View view, int position,
                                 long id) {
                             if (mFontSelIdx != position) {
                                 String strFontName;
-                                strFontName = (String) mFontSpinner.getItemAtPosition(position);
+                                strFontName = (String) mSpinnerFont.getItemAtPosition(position);
                                 mFontSelIdx = position;
-                                Log.d("TEST", "SEL >>>" + strFontName);
-                                mApp.getLedSignBitmap().setFontName(strFontName);
-                                mBannerView.invalidate();
-                                Options options = new BitmapFactory.Options();
-                                options.inScaled = false;
-                                Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.gps_receiving, options);
-                                mApp.getDev().showText(bm, "æ»≥Á«œººø‰!! Hello", strFontName);
+                                LogUtil.d("SEL %s : %s", strFontName, mApp.getDisplay().getText());
+                                mApp.getDisplay().setFontName(strFontName);
+                                mViewBanner.invalidate();
                             }
                         }
 
@@ -154,14 +153,12 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
         // Save UI state changes to the savedInstanceState.
         // This bundle will be passed to onCreate if the process is
         // killed and restarted.
+        LogUtil.e("-----------");
         savedInstanceState.putInt("font_idx", mFontSelIdx);
-        savedInstanceState.putInt("font_size", mIntZoomFont);
         savedInstanceState.putInt("play_speed", mIntPlaySpeed);
         savedInstanceState.putBoolean("bt_connected", mBTConnected);
-
-        Log.d("TEST", "H5 " + mIntPlaySpeed);
-
-        mBannerView.saveInstanceState(savedInstanceState);
+        mApp.getDisplay().saveInstanceState(savedInstanceState);
+        mViewBanner.saveInstanceState(savedInstanceState);
     }
 
     @Override
@@ -169,70 +166,71 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
         super.onRestoreInstanceState(savedInstanceState);
         // Restore UI state from the savedInstanceState.
         // This bundle has also been passed to onCreate.
+        LogUtil.e("-----------");
         mFontSelIdx = savedInstanceState.getInt("font_idx");
-        mIntZoomFont = savedInstanceState.getInt("font_size");
         mIntPlaySpeed = savedInstanceState.getInt("play_speed");
-        mBannerView.restoreInstanceState(savedInstanceState);
         mBTConnected = savedInstanceState.getBoolean("bt_connected");
-        Log.d("TEST", "H4 " + mIntPlaySpeed);
+        mApp.getDisplay().restoreInstanceState(savedInstanceState);
+        mViewBanner.restoreInstanceState(savedInstanceState);
     }
 
     public void updateLedSignInfo(boolean updated) {
         TextView textInfo = (TextView) findViewById(R.id.TextViewPhyRes);
         if (textInfo != null) {
-            String strInfo = String.format(Locale.getDefault(), "%d x %d", mApp.getLedSignBitmap()
-                    .getXRes(), mApp.getLedSignBitmap().getYRes());
+            String strInfo = String.format(Locale.getDefault(), "%d x %d", mApp.getDisplay()
+                    .getWidth(), mApp.getDisplay().getHeight());
             textInfo.setText(strInfo);
         }
 
         textInfo = (TextView) findViewById(R.id.TextViewVirRes);
         if (textInfo != null) {
-            String strInfo = String.format(Locale.getDefault(), "%d x %d", mApp.getLedSignBitmap()
-                    .getXResVirtual(), mApp.getLedSignBitmap().getYResVirtual());
+            String strInfo = String.format(Locale.getDefault(), "%d x %d", mApp.getDisplay()
+                    .getVirtualWidth(), mApp.getDisplay().getVirtualHeight());
             textInfo.setText(strInfo);
         }
 
         textInfo = (TextView) findViewById(R.id.TextViewBPP);
         if (textInfo != null) {
-            String strInfo = String.format(Locale.getDefault(), "%d (%d)", mApp.getLedSignBitmap()
-                    .getColorCount(), mApp.getLedSignBitmap().getBPP());
+            String strInfo = String.format(Locale.getDefault(), "%d (%d)", mApp.getDisplay()
+                    .getColorCount(), mApp.getDisplay().getBPP());
             textInfo.setText(strInfo);
         }
 
         if (updated)
-            mBannerView.invalidate();
+            mViewBanner.invalidate();
     }
 
     @Override
     public synchronized void onResume() {
         super.onResume();
 
-        String str = mApp.getLedSignBitmap().getBanner();
+        OnButtonDone(null);
+        String str = mApp.getDisplay().getText();
         EditText editBanner = (EditText) findViewById(R.id.editTextBanner);
         if (editBanner != null && str != null) {
             editBanner.setText(str.toCharArray(), 0, str.length());
         }
 
-        if (mFontSpinner != null) {
-            mFontSpinner.setSelection(mFontSelIdx);
+        if (mSpinnerFont != null) {
+            mSpinnerFont.setSelection(mFontSelIdx);
         }
 
         updateLedSignInfo(false);
 
         CheckBox checkVScrollLock = (CheckBox) findViewById(R.id.checkBoxVScroll);
         if (checkVScrollLock != null) {
-            boolean check = mBannerView.getVScroll();
+            boolean check = mViewBanner.getVScroll();
             checkVScrollLock.setChecked(check);
         }
 
-        int nColor = mApp.getLedSignBitmap().getDefaultColor();
-        mBannerView.setSelColor(mApp.getLedSignBitmap().getColorCount() - 1, nColor);
+        int nColor = mApp.getDisplay().getDefaultColor();
+        mViewBanner.setSelColor(mApp.getDisplay().getColorCount() - 1, nColor);
 
-        int pos = mApp.getLedSignBitmap().getColorCount() - 1;
+        int pos = mApp.getDisplay().getColorCount() - 1;
         ImageButton btn = (ImageButton) findViewById(R.id.buttonColor);
         if (btn != null) {
             Bitmap bm = ColorPickerAdapter.getColorBitmap(pos, 80, 0, nColor, mApp
-                    .getLedSignBitmap().getColorCount(), false);
+                    .getDisplay().getColorCount(), false);
             btn.setImageBitmap(Bitmap.createScaledBitmap(bm, 64, 64, true));
         }
 
@@ -243,9 +241,9 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
 
         changeSyncButtonState(mBTConnected);
 
-        mBannerView.invalidate();
+        mViewBanner.invalidate();
         
-        if (mApp.getDev() == null || mApp.getDev().getBTState() != SerialPort.STATE_CONNECTED)
+        if (mApp.getDisplay() == null || mApp.getDisplay().getBTState() != SerialPort.STATE_CONNECTED)
             mApp.connectDev(new CNKHandler(this));
     }
 
@@ -259,8 +257,11 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
     public synchronized void onStop() {
         super.onStop();
         if (mBoolPlay)
-            mBannerView.stopPlay();
+            mViewBanner.stopPlay();
         Log.d(TAG, "onStop !!!");
+
+        Intent i = new Intent(this, TMAPLinkage.class);
+        stopService(i);
     }
 
     @Override
@@ -298,11 +299,19 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
 
     public void OnButtonDone(View v) {
         EditText editBanner = (EditText) findViewById(R.id.editTextBanner);
-        String str = editBanner.getText().toString();
-        mApp.getLedSignBitmap().setBanner(str);
+        String str = null;
+        
+        if (editBanner != null)
+            str = editBanner.getText().toString();
+        
+        if (str == null || str.length() == 0)
+            str = "æ»≥Á«œººø‰ Hello!!";
+        
+        mApp.getDisplay().setText(str);
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(editBanner.getWindowToken(), 0);
-        mBannerView.invalidate();
+        if (editBanner != null)
+            imm.hideSoftInputFromWindow(editBanner.getWindowToken(), 0);
+        mViewBanner.invalidate();
     }
 
     @Override
@@ -310,29 +319,29 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
         ImageButton btn = (ImageButton) findViewById(R.id.buttonColor);
 
         int btnColor = 0;
-        if (pos >= mApp.getLedSignBitmap().getColorCount())
-            btnColor = mBannerView.getSelColor();
+        if (pos >= mApp.getDisplay().getColorCount())
+            btnColor = mViewBanner.getSelColor();
 
         Bitmap bm = ColorPickerAdapter.getColorBitmap(pos, 80, btnColor, color, mApp
-                .getLedSignBitmap().getColorCount(), false);
+                .getDisplay().getColorCount(), false);
         btn.setImageBitmap(Bitmap.createScaledBitmap(bm, 64, 64, true));
 
         Log.d(TAG, "color " + pos);
-        if (mBannerView != null)
-            mBannerView.setSelColor(pos, color);
+        if (mViewBanner != null)
+            mViewBanner.setSelColor(pos, color);
     }
 
     public void onClickColorPickerDialog(View v) {
         ColorPickerDialog dialog;
-        dialog = new ColorPickerDialog(this, this, mApp.getLedSignBitmap().getColorTable(), mApp
-                .getLedSignBitmap().getColorCount(), mBannerView.getSelColor());
+        dialog = new ColorPickerDialog(this, this, mApp.getDisplay().getColorTable(), mApp
+                .getDisplay().getColorCount(), mViewBanner.getSelColor());
         dialog.show();
     }
 
     public void onClickVScrollLock(View v) {
         CheckBox checkVScrollLock = (CheckBox) findViewById(R.id.checkBoxVScroll);
         if (checkVScrollLock != null) {
-            mBannerView.lockVScroll(checkVScrollLock.isChecked());
+            mViewBanner.lockVScroll(checkVScrollLock.isChecked());
         }
     }
 
@@ -343,31 +352,35 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
                 getWindow().getDecorView().setSystemUiVisibility(
                         View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
             }
-            mBannerView.startPlay();
+            mViewBanner.startPlay();
             btn.setText(R.string.strStop);
             mBoolPlay = true;
         } else {
-            mBannerView.stopPlay();
+            mViewBanner.stopPlay();
             btn.setText(R.string.strPlay);
             mBoolPlay = false;
         }
     }
 
     public void onClickZoomPlus(View v) {
-        if (mIntZoomFont < 50)
-            mIntZoomFont++;
-        if (mBannerView != null) {
-            mApp.getLedSignBitmap().setFontSize(mIntZoomFont);
-            mBannerView.invalidate();
+        int nFontSize = mApp.getDisplay().getFontSize();
+        
+        if (nFontSize < 50)
+            nFontSize++;
+        if (mViewBanner != null) {
+            mApp.getDisplay().setFontSize(nFontSize);
+            mViewBanner.invalidate();
         }
     }
 
     public void onClickZoomMinus(View v) {
-        if (mIntZoomFont > 4)
-            mIntZoomFont--;
-        if (mBannerView != null) {
-            mApp.getLedSignBitmap().setFontSize(mIntZoomFont);
-            mBannerView.invalidate();
+        int nFontSize = mApp.getDisplay().getFontSize();
+        
+        if (nFontSize > 4)
+            nFontSize--;
+        if (mViewBanner != null) {
+            mApp.getDisplay().setFontSize(nFontSize);
+            mViewBanner.invalidate();
         }
     }
 
@@ -378,7 +391,7 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
     }
 
     public void onClickFile(View v) {
-        Intent intent = new Intent(this, BTLedSignFile.class);
+        Intent intent = new Intent(this, ActivityLoadSave.class);
 
         Bundle b = new Bundle();
         b.putInt("key", 0);
@@ -387,7 +400,7 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
     }
 
     public void onClickSave(View v) {
-        Intent intent = new Intent(this, BTLedSignFile.class);
+        Intent intent = new Intent(this, ActivityLoadSave.class);
 
         Bundle b = new Bundle();
         b.putInt("key", 1);
@@ -411,7 +424,7 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
                 if (checkVScrollLock != null) {
                     checkVScrollLock.setChecked(true);
                 }
-                mBannerView.lockVScroll(true);
+                mViewBanner.lockVScroll(true);
                 break;
 
             case GET_SAVE:
@@ -428,23 +441,7 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
         if (!mBTConnected)
             return;
 
-        byte[] bufDisp = mApp.getLedSignBitmap().getDispBuf();
-        byte[] bufAttr = mApp.getLedSignBitmap().getAttrBuf();
-        byte[] buf = new byte[bufDisp.length + bufAttr.length];
-
-        System.arraycopy(bufDisp, 0, buf, 0, bufDisp.length);
-        System.arraycopy(bufAttr, 0, buf, bufDisp.length, bufAttr.length);
-        //mApp.sendData(BTLedSignApp.IOCTL_LED_SET_DATA, buf, 300);
-
-        try {
-            Thread.sleep(300);
-        } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-        byte[] bufSpeed = new byte[1];
-        bufSpeed[0] = (byte) (9 - mIntPlaySpeed);
-        //mApp.sendData(BTLedSignApp.IOCTL_LED_PLAY, bufSpeed, 0);
+        mApp.getDisplay().show();
     }
     
     static class CNKHandler extends Handler {
@@ -462,32 +459,22 @@ public class ActivityMain extends Activity implements OnColorChangedListener {
                 return;
 
             switch (msg.what) {
-                case CNKHud.CNK_BT_STATUS:
+                case DisplayLED.MSG_STATUS:
                     if (msg.arg1 == SerialPort.STATE_CONNECTED) {
-                        LogUtil.d("SENDING....");
-                        parent.mApp.getDev().showDist(1234);
-                        parent.mApp.getDev().showLimit(5678);
-                        parent.mApp.getDev().showSpeed(9012);
-                        
-                        Options options = new BitmapFactory.Options();
-                        options.inScaled = false;
-                        Bitmap bm = BitmapFactory.decodeResource(parent.getResources(), R.drawable.gps_receiving, options);
-                        parent.mApp.getDev().showText(bm, "æ»≥Á«œººø‰!! Hello", null);
-                        //"$COP,A0000000000707FFE0100010001007FFE00007FFC0002000200027FFC00007FFE400240023FFC00000738079805C804C80678067802000600040807F807F8040806000708003801F807C807C803F80038040807F807F8046806F807F8038800080600040807F807F8040806000700;"
-                        //"$COP,A0000000000700000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000;"
-                        //"$COP,A0000000000700000000000000000000000000000000000000000000000000000000000000000"
-                        //String test = new String("$COP,A0000000000707FFE0100010001007FFE00007FFC0002000200027FFC00007FFE400240023FFC00000738079805C804C80678067802000600040807F807F8040806000708003801F807C807C803F80038040807F807F8046806F807F8038800080600040807F807F8040806000700;");
-                        //parent.mApp.getDev().write(test.getBytes());
-                        
-                        /*  parking
-                            Formatter formatter = new Formatter();
-                            formatter.format("$COP,C %s%s;", new Object[] {
-                                data, CommonUtil.rPad("", 208, "0")
-                            });
-                            String s = formatter.toString();
-                            formatter.close();
-                         */
+                        parent.mBTConnected = true;
+//                        LogUtil.d("SENDING....");
+//
+//                        Options options = new BitmapFactory.Options();
+//                        options.inScaled = false;
+//                        Bitmap bm = BitmapFactory.decodeResource(parent.getResources(), R.drawable.gps_receiving, options);
+//                        CNKHud hud = (CNKHud)parent.mApp.getDisplay();
+//                        hud.showDist(999);
+//                        parent.mApp.getDisplay().setText("æ»≥Á«œººø‰!! Hello");
+//                        parent.mApp.getDisplay().show();
+                    } else {
+                        parent.mBTConnected = false;
                     }
+                    parent.changeSyncButtonState(parent.mBTConnected);
                     break;
             }
         }

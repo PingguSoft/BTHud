@@ -2,8 +2,7 @@
         android:id="@+id/linearLayout1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen" >
+        android:orientation="vertical" >
 
         <RelativeLayout
             android:layout_width="match_parent"

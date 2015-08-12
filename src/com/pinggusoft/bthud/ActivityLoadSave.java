@@ -37,7 +37,7 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class BTLedSignFile extends Activity {
+public class ActivityLoadSave extends Activity {
     private final static String TAG          = "BTLedSign";
     private BTLedSignApp        mApp;
     private boolean             mOpenMode    = true;
@@ -178,17 +178,17 @@ public class BTLedSignFile extends Activity {
                     inputStream.close();
                     //String str = String.format("%dx%d %d", width, height, total);
                     //Log.d(TAG, str);
+                    
+                    Bitmap bitmap = null;
+                    if (bufBitmap != null) {
+                        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+                        bitmap.copyPixelsFromBuffer(bufBitmap);
+                    }
+                    items.add(new FileItem(files[i].getName(), bitmap, bpp, lastModDate));                    
                 }
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
-            Bitmap bitmap = null;
-            if (bufBitmap != null) {
-                bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                bitmap.copyPixelsFromBuffer(bufBitmap);
-            }
-            items.add(new FileItem(files[i].getName(), bitmap, bpp, lastModDate));
         }
 
         Comparator<FileItem> comperator = new Comparator<FileItem>() {
@@ -222,7 +222,7 @@ public class BTLedSignFile extends Activity {
                     Log.d(TAG, "sel " + pos + ", name " + item.mStrName);
 
                     if (mOpenMode == true) {
-                        mApp.getLedSignBitmap().genBitmap(item.mBitmap);
+                        mApp.getDisplay().setBitmap(item.mBitmap);
                         finish();
                     } else {
                         saveFile(item.mStrName);
@@ -302,7 +302,7 @@ public class BTLedSignFile extends Activity {
         FileOutputStream outputStream;
 
         try {
-            Bitmap bitmap = mApp.getLedSignBitmap().getBitmap();
+            Bitmap bitmap = mApp.getDisplay().getBitmap();
 
             ByteBuffer bufBitmap = ByteBuffer.allocate(bitmap.getByteCount());
             bitmap.copyPixelsToBuffer(bufBitmap);
@@ -317,7 +317,7 @@ public class BTLedSignFile extends Activity {
             outputStream.write(bb.putInt(bitmap.getHeight()).array());
             bb.clear();
             // bpp
-            outputStream.write(bb.putInt(mApp.getLedSignBitmap().getBPP()).array());
+            outputStream.write(bb.putInt(mApp.getDisplay().getBPP()).array());
             bb.clear();
             // bitmap size
             outputStream.write(bb.putInt(bitmap.getByteCount()).array());

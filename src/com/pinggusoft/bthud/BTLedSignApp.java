@@ -1,6 +1,7 @@
 package com.pinggusoft.bthud;
 
 import com.pinggusoft.device.CNKHud;
+import com.pinggusoft.device.DisplayLED;
 
 import android.app.Application;
 import android.bluetooth.BluetoothAdapter;
@@ -13,9 +14,8 @@ import android.preference.PreferenceManager;
 import android.util.Log;
 
 public class BTLedSignApp extends Application {
-    public final static String  KEY_BTDEVICE              = "KEY_BTDEVICE";
-    
-   
+    public final static String KEY_BTDEVICE         = "KEY_BTDEVICE";
+
     private SharedPreferences  m_spBTHud;
     private Editor             m_editorBTHud;
 
@@ -25,49 +25,46 @@ public class BTLedSignApp extends Application {
     public static final int    MESSAGE_DEVICE_NAME  = 4;
     public static final int    MESSAGE_TOAST        = 5;
 
-    private CNKHud             mDevice           = null;
-    private String             mStrBTMac = null;
-    private LedSignBitmap      mLedSign             = new LedSignBitmap(16 * 5, 16, 16 * 20, 16, 2);
-
+    private DisplayLED         mDisplay             = null;
+    private String             mStrBTMac            = null;
+    
     public void connectDev(Handler handler, String strBTMac) {
-        mDevice = new CNKHud(getBaseContext(), handler);
+        mDisplay.setCallback(handler);
         if (strBTMac != null) {
             mStrBTMac = strBTMac;
-            mDevice.connect(mStrBTMac);
+            mDisplay.connect(mStrBTMac);
         }
         save();
     }
 
     public void connectDev(Handler handler) {
-        mDevice = new CNKHud(getBaseContext(), handler);
+        mDisplay.setCallback(handler);
         if (mStrBTMac != null) {
-            mDevice.connect(mStrBTMac);
+            mDisplay.connect(mStrBTMac);
         }
-    }    
-    
-    public LedSignBitmap getLedSignBitmap() {
-        return mLedSign;
     }
 
     public void disconnectDev() {
-        if (mDevice != null)
-            mDevice.stop();
-        mDevice = null;
+        if (mDisplay != null)
+            mDisplay.stop();
+        mDisplay = null;
     }
-    
-    public CNKHud getDev() {
-        return mDevice;
+
+    public DisplayLED getDisplay() {
+        if (mDisplay == null)
+            mDisplay = new CNKHud(getBaseContext(), null);
+        return mDisplay;
     }
 
     @Override
     public void onCreate() {
         super.onCreate();
-
+        LogUtil.e("-----------");
         m_spBTHud = PreferenceManager.getDefaultSharedPreferences(this);
         m_editorBTHud = m_spBTHud.edit();
         mStrBTMac = m_spBTHud.getString(KEY_BTDEVICE, null);
     }
-    
+
     public void save() {
         m_editorBTHud.putString(KEY_BTDEVICE, mStrBTMac);
         m_editorBTHud.commit();
@@ -78,5 +75,7 @@ public class BTLedSignApp extends Application {
         super.onTerminate();
         disconnectDev();
     }
+    
+    
 
 }

@@ -33,7 +33,7 @@ public class LedSignBitmap {
     private Bitmap           mBitmapBanner;
 
     // constructor
-    LedSignBitmap(int xres, int yres, int xres_virtual, int yres_virtual, int bpp) {
+    public LedSignBitmap(int xres, int yres, int xres_virtual, int yres_virtual, int bpp) {
         mIntXRes = xres;
         mIntYRes = yres;
         mIntXResVirtual = xres_virtual;
@@ -140,8 +140,8 @@ public class LedSignBitmap {
     }
 
     public int getDefaultColor() {
-        int nRow = mIntColors / (4 + 1);
-        int nCol = (mIntColors - 1) % 4;
+        int nRow = mIntColors / (mIntColors + 1);
+        int nCol = (mIntColors - 1) % mIntColors;
 
         return mCurColorTbl[nRow][nCol];
     }
@@ -163,12 +163,9 @@ public class LedSignBitmap {
 
         mBitmapBanner = Bitmap.createBitmap(mIntXResVirtual, mIntYRes, Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(mBitmapBanner);
-        c.drawColor(Color.WHITE);
+        c.drawColor(Color.BLACK);
 
         Paint paint = new Paint();
-        paint.setColor(Color.BLACK);
-        c.drawRect(0, 0, mIntXResVirtual, mIntYRes, paint);
-
         paint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
         paint.setTextSize(mIntZoomFont);
         paint.setTextScaleX(1.f);
@@ -258,8 +255,8 @@ public class LedSignBitmap {
                     pix = 0;
 
                     for (int k = 0; k < mIntColors; k++) {
-                        nRow = k / 4;
-                        nCol = k % 4;
+                        nRow = k / mIntColors;
+                        nCol = k % mIntColors;
 
                         if (pixel == mCurColorTbl[nRow][nCol]) {
                             pix = k;

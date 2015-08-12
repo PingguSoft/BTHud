@@ -1,8 +1,10 @@
 package com.pinggusoft.bthud;
 
-
 import java.util.Timer;
 import java.util.TimerTask;
+
+import com.pinggusoft.device.DisplayLED;
+
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.graphics.Canvas;
@@ -29,159 +31,165 @@ import android.widget.OverScroller;
 @TargetApi(Build.VERSION_CODES.GINGERBREAD)
 public class LedSignView extends View {
 
-	private static final String TAG = "TEST";
+    private static final String   TAG                    = "TEST";
     /**
      * The scaling factor for a single zoom 'step'.
      *
      * @see #zoomIn()
      * @see #zoomOut()
      */
-    private static final float ZOOM_AMOUNT = 0.25f;	
-    private static final float AXIS_X_MIN = -1f;
-    private static final float AXIS_X_MAX = 1f;
-    private static final float AXIS_Y_MIN = -1f;
-    private static final float AXIS_Y_MAX = 1f;
-    private static final int   MATRIX_Y_OFF      = 30;
-    private static final int   CTRL_COLOR_Y_OFF  = 30;
-    private static final int   CTRL_COLOR_Y_SIZE = 60;
+    private static final float    ZOOM_AMOUNT            = 0.25f;
+    private static final float    AXIS_X_MIN             = -1f;
+    private static final float    AXIS_X_MAX             = 1f;
+    private static final float    AXIS_Y_MIN             = -1f;
+    private static final float    AXIS_Y_MAX             = 1f;
+    private static final int      MATRIX_Y_OFF           = 30;
+    private static final int      CTRL_COLOR_Y_OFF       = 30;
+    private static final int      CTRL_COLOR_Y_SIZE      = 60;
 
-	//
-	private int mIntZoomScale = 4;
-	private int mIntDispPos   = 14;
-	private int mPrevTouched  = -1;
-	
-	// Color & Scroll
-	private int mIntSelColorIdx  = 0;
-	private int mIntSelColor     = Color.BLACK;
-	private boolean mVScrollLock = false;
-	
-	// animating
-	private boolean mPlaying = false;
-	private int     mPlayCnt = 0;
+    //
+    private int                   mIntZoomScale          = 4;
+    private int                   mIntDispPos            = 14;
+    private int                   mPrevTouched           = -1;
 
-	// Rect area
-    private RectF mCurrentViewport = new RectF(AXIS_X_MIN, AXIS_Y_MIN, AXIS_X_MAX, AXIS_Y_MAX);
-    private Rect mContentRect      = new Rect();
-    private Rect mViewRect         = new Rect();
-    private Rect mTouchableRect    = new Rect();
-    private Rect mColorCtrlRect    = new Rect();
+    // Color & Scroll
+    private int                   mIntSelColorIdx        = 0;
+    private int                   mIntSelColor           = Color.BLACK;
+    private boolean               mVScrollLock           = false;
+
+    // animating
+    private boolean               mPlaying               = false;
+    private int                   mPlayCnt               = 0;
+
+    // Rect area
+    private RectF                 mCurrentViewport       = new RectF(AXIS_X_MIN, AXIS_Y_MIN,
+                                                                 AXIS_X_MAX, AXIS_Y_MAX);
+    private Rect                  mContentRect           = new Rect();
+    private Rect                  mViewRect              = new Rect();
+    private Rect                  mTouchableRect         = new Rect();
+    private Rect                  mColorCtrlRect         = new Rect();
 
     // State objects and values related to gesture tracking.
-    private ScaleGestureDetector mScaleGestureDetector = null;
-    private GestureDetectorCompat mGestureDetector = null;
-    private OverScroller mScroller = null;
-    private Zoomer mZoomer = null;
-    private PointF mZoomFocalPoint = new PointF();
-    private RectF mScrollerStartViewport = new RectF(); // Used only for zooms and flings.	
-	
-    // Edge effect / overscroll tracking objects.
-    private EdgeEffectCompat mEdgeEffectTop;
-    private EdgeEffectCompat mEdgeEffectBottom;
-    private EdgeEffectCompat mEdgeEffectLeft;
-    private EdgeEffectCompat mEdgeEffectRight;
+    private ScaleGestureDetector  mScaleGestureDetector  = null;
+    private GestureDetectorCompat mGestureDetector       = null;
+    private OverScroller          mScroller              = null;
+    private Zoomer                mZoomer                = null;
+    private PointF                mZoomFocalPoint        = new PointF();
+    private RectF                 mScrollerStartViewport = new RectF();                  // Used only for zooms and flings.	
 
-    private boolean mEdgeEffectTopActive;
-    private boolean mEdgeEffectBottomActive;
-    private boolean mEdgeEffectLeftActive;
-    private boolean mEdgeEffectRightActive;
-    private Point mSurfaceSizeBuffer = new Point();
-    private LedSignBitmap mLedSign = new LedSignBitmap(16 * 5, 16, 16 * 5, 16, 2);
-    
-	// CONSTRUCTOR
+    // Edge effect / overscroll tracking objects.
+    private EdgeEffectCompat      mEdgeEffectTop;
+    private EdgeEffectCompat      mEdgeEffectBottom;
+    private EdgeEffectCompat      mEdgeEffectLeft;
+    private EdgeEffectCompat      mEdgeEffectRight;
+
+    private boolean               mEdgeEffectTopActive;
+    private boolean               mEdgeEffectBottomActive;
+    private boolean               mEdgeEffectLeftActive;
+    private boolean               mEdgeEffectRightActive;
+    private Point                 mSurfaceSizeBuffer     = new Point();
+    private DisplayLED            mDisplay = null;
+
+    // CONSTRUCTOR
     public void setup(Context context) {
         // Sets up interactions
-		if (mScaleGestureDetector == null)
-			mScaleGestureDetector = new ScaleGestureDetector(context, mScaleGestureListener);
-		
-		if (mGestureDetector == null)
-			mGestureDetector = new GestureDetectorCompat(context, mGestureListener);
+        if (mScaleGestureDetector == null)
+            mScaleGestureDetector = new ScaleGestureDetector(context, mScaleGestureListener);
 
-		if (mScroller == null)
-			mScroller = new OverScroller(context);
-		
-		if (mZoomer == null)
-			mZoomer = new Zoomer(context);    	
-		
+        if (mGestureDetector == null)
+            mGestureDetector = new GestureDetectorCompat(context, mGestureListener);
+
+        if (mScroller == null)
+            mScroller = new OverScroller(context);
+
+        if (mZoomer == null)
+            mZoomer = new Zoomer(context);
+
         // Sets up edge effects
-		if (mEdgeEffectLeft == null)
-			mEdgeEffectLeft = new EdgeEffectCompat(context);
-		
-		if (mEdgeEffectTop == null)
-			mEdgeEffectTop = new EdgeEffectCompat(context);
-		
-		if (mEdgeEffectRight == null)
-			mEdgeEffectRight = new EdgeEffectCompat(context);
-		
-		if (mEdgeEffectBottom == null)
-			mEdgeEffectBottom = new EdgeEffectCompat(context);
-		
-		updateViewInfo();
+        if (mEdgeEffectLeft == null)
+            mEdgeEffectLeft = new EdgeEffectCompat(context);
+
+        if (mEdgeEffectTop == null)
+            mEdgeEffectTop = new EdgeEffectCompat(context);
+
+        if (mEdgeEffectRight == null)
+            mEdgeEffectRight = new EdgeEffectCompat(context);
+
+        if (mEdgeEffectBottom == null)
+            mEdgeEffectBottom = new EdgeEffectCompat(context);
+
+        updateViewInfo();
     }
-   
-	public LedSignView(Context context) {
-		super(context);
-		setFocusable(true);
-		setup(context);
-	}
 
-	public LedSignView(Context context, AttributeSet attrs) {
-		super(context, attrs);
-		setup(context);
-	}
-	
-	public LedSignView(Context context, AttributeSet attrs, int defStyle) {
-		super(context, attrs, defStyle);
-		setup(context);
-	}
-	
-	public void setApplication(BTLedSignApp app) {
-		mLedSign = app.getLedSignBitmap();
-		updateViewInfo();
-	}
-	
-	public void updateViewInfo() {
-		mContentRect.set(0, 0, mLedSign.getXResVirtual() * 20, mLedSign.getYResVirtual() * 40);
-		float ratio = (float)mLedSign.getXRes() / (float)mLedSign.getXResVirtual();
-		mCurrentViewport.set(-1.0f, -0.5f, ratio, 0.5f);		
-	}
-	
-	public void setSelColor(int pos, int color) {
-		mIntSelColorIdx = pos;
-		if (pos < mLedSign.getColorCount())
-			mIntSelColor = color;
-	}
-	
-	public int getSelColor() {
-		return mIntSelColor;
-	}
-	
-	public int getSelColorIdx() {
-		return mIntSelColorIdx;
-	}
-	
-	public void lockVScroll(boolean lock) {
-		mVScrollLock = lock;
-	}
-	
-	public boolean getVScroll() {
-		return mVScrollLock;
-	}
-	
-	public void saveInstanceState(Bundle savedInstanceState) {
-		savedInstanceState.putBoolean("vscr_lock", mVScrollLock);
-	}
+    public LedSignView(Context context) {
+        super(context);
+        setFocusable(true);
+        setup(context);
+    }
 
-	public void restoreInstanceState(Bundle savedInstanceState) {
-	  	mVScrollLock  = savedInstanceState.getBoolean("vscr_lock");
-	}
-	
+    public LedSignView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        setup(context);
+    }
+
+    public LedSignView(Context context, AttributeSet attrs, int defStyle) {
+        super(context, attrs, defStyle);
+        setup(context);
+    }
+
+    public void setDisplay(DisplayLED display) {
+        mDisplay = display;
+        updateViewInfo();
+    }
+
+    public void updateViewInfo() {
+        if (mDisplay == null)
+            return;
+        mContentRect.set(0, 0, mDisplay.getVirtualWidth() * 20, mDisplay.getVirtualHeight() * 40);
+        float ratio = (float) mDisplay.getWidth() / (float) mDisplay.getVirtualWidth();
+        mCurrentViewport.set(-1.0f, -0.5f, ratio, 0.5f);
+    }
+
+    public void setSelColor(int pos, int color) {
+        mIntSelColorIdx = pos;
+        if (mDisplay == null)
+            return;
+        
+        if (pos < mDisplay.getColorCount())
+            mIntSelColor = color;
+    }
+
+    public int getSelColor() {
+        return mIntSelColor;
+    }
+
+    public int getSelColorIdx() {
+        return mIntSelColorIdx;
+    }
+
+    public void lockVScroll(boolean lock) {
+        mVScrollLock = lock;
+    }
+
+    public boolean getVScroll() {
+        return mVScrollLock;
+    }
+
+    public void saveInstanceState(Bundle savedInstanceState) {
+        savedInstanceState.putBoolean("vscr_lock", mVScrollLock);
+    }
+
+    public void restoreInstanceState(Bundle savedInstanceState) {
+        mVScrollLock = savedInstanceState.getBoolean("vscr_lock");
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         boolean retVal = mScaleGestureDetector.onTouchEvent(event);
         retVal = mGestureDetector.onTouchEvent(event) || retVal;
         return retVal || super.onTouchEvent(event);
-    }	
-	
+    }
+
     /**
      * The scale listener, used for handling multi-finger scale gestures.
      */
@@ -347,11 +355,7 @@ public class LedSignView extends View {
     };    
 
     private void releaseEdgeEffects() {
-        mEdgeEffectLeftActive
-                = mEdgeEffectTopActive
-                = mEdgeEffectRightActive
-                = mEdgeEffectBottomActive
-                = false;
+        mEdgeEffectLeftActive = mEdgeEffectTopActive = mEdgeEffectRightActive = mEdgeEffectBottomActive = false;
         mEdgeEffectLeft.onRelease();
         mEdgeEffectTop.onRelease();
         mEdgeEffectRight.onRelease();
@@ -363,23 +367,15 @@ public class LedSignView extends View {
         // Flings use math in pixels (as opposed to math based on the viewport).
         computeScrollSurfaceSize(mSurfaceSizeBuffer);
         mScrollerStartViewport.set(mCurrentViewport);
-        int startX = (int) (mSurfaceSizeBuffer.x * (mScrollerStartViewport.left - AXIS_X_MIN) / (
-                AXIS_X_MAX - AXIS_X_MIN));
-        int startY = (int) (mSurfaceSizeBuffer.y * (AXIS_Y_MAX - mScrollerStartViewport.bottom) / (
-                AXIS_Y_MAX - AXIS_Y_MIN));
+        int startX = (int) (mSurfaceSizeBuffer.x * (mScrollerStartViewport.left - AXIS_X_MIN) / (AXIS_X_MAX - AXIS_X_MIN));
+        int startY = (int) (mSurfaceSizeBuffer.y * (AXIS_Y_MAX - mScrollerStartViewport.bottom) / (AXIS_Y_MAX - AXIS_Y_MIN));
         mScroller.forceFinished(true);
-        mScroller.fling(
-                startX,
-                startY,
-                velocityX,
-                velocityY,
-                0, mSurfaceSizeBuffer.x - mContentRect.width(),
-                0, mSurfaceSizeBuffer.y - mContentRect.height(),
-                mContentRect.width() / 2,
-                mContentRect.height() / 2);
+        mScroller.fling(startX, startY, velocityX, velocityY, 0, mSurfaceSizeBuffer.x -
+                mContentRect.width(), 0, mSurfaceSizeBuffer.y - mContentRect.height(), mContentRect
+                .width() / 2, mContentRect.height() / 2);
         ViewCompat.postInvalidateOnAnimation(this);
     }
-    
+
     /**
      * Computes the current scrollable surface size, in pixels. For example, if the entire chart
      * area is visible, this is simply the current size of {@link #mContentRect}. If the chart
@@ -387,11 +383,9 @@ public class LedSignView extends View {
      * and vertically.
      */
     private void computeScrollSurfaceSize(Point out) {
-        out.set(
-                (int) (mContentRect.width() * (AXIS_X_MAX - AXIS_X_MIN)
-                        / mCurrentViewport.width()),
-                (int) (mContentRect.height() * (AXIS_Y_MAX - AXIS_Y_MIN)
-                        / mCurrentViewport.height()));
+        out.set((int) (mContentRect.width() * (AXIS_X_MAX - AXIS_X_MIN) / mCurrentViewport.width()),
+                (int) (mContentRect.height() * (AXIS_Y_MAX - AXIS_Y_MIN) / mCurrentViewport
+                        .height()));
     }
 
     @Override
@@ -408,47 +402,35 @@ public class LedSignView extends View {
             int currX = mScroller.getCurrX();
             int currY = mScroller.getCurrY();
 
-            boolean canScrollX = (mCurrentViewport.left > AXIS_X_MIN
-                    || mCurrentViewport.right < AXIS_X_MAX);
-            boolean canScrollY = (mCurrentViewport.top > AXIS_Y_MIN
-                    || mCurrentViewport.bottom < AXIS_Y_MAX);
+            boolean canScrollX = (mCurrentViewport.left > AXIS_X_MIN || mCurrentViewport.right < AXIS_X_MAX);
+            boolean canScrollY = (mCurrentViewport.top > AXIS_Y_MIN || mCurrentViewport.bottom < AXIS_Y_MAX);
 
-            if (canScrollX
-                    && currX < 0
-                    && mEdgeEffectLeft.isFinished()
-                    && !mEdgeEffectLeftActive) {
+            if (canScrollX && currX < 0 && mEdgeEffectLeft.isFinished() && !mEdgeEffectLeftActive) {
                 mEdgeEffectLeft.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
                 mEdgeEffectLeftActive = true;
                 needsInvalidate = true;
-            } else if (canScrollX
-                    && currX > (mSurfaceSizeBuffer.x - mContentRect.width())
-                    && mEdgeEffectRight.isFinished()
-                    && !mEdgeEffectRightActive) {
+            } else if (canScrollX && currX > (mSurfaceSizeBuffer.x - mContentRect.width()) &&
+                    mEdgeEffectRight.isFinished() && !mEdgeEffectRightActive) {
                 mEdgeEffectRight.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
                 mEdgeEffectRightActive = true;
                 needsInvalidate = true;
             }
 
-            if (canScrollY
-                    && currY < 0
-                    && mEdgeEffectTop.isFinished()
-                    && !mEdgeEffectTopActive) {
+            if (canScrollY && currY < 0 && mEdgeEffectTop.isFinished() && !mEdgeEffectTopActive) {
                 mEdgeEffectTop.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
                 mEdgeEffectTopActive = true;
                 needsInvalidate = true;
-            } else if (canScrollY
-                    && currY > (mSurfaceSizeBuffer.y - mContentRect.height())
-                    && mEdgeEffectBottom.isFinished()
-                    && !mEdgeEffectBottomActive) {
+            } else if (canScrollY && currY > (mSurfaceSizeBuffer.y - mContentRect.height()) &&
+                    mEdgeEffectBottom.isFinished() && !mEdgeEffectBottomActive) {
                 mEdgeEffectBottom.onAbsorb((int) OverScrollerCompat.getCurrVelocity(mScroller));
                 mEdgeEffectBottomActive = true;
                 needsInvalidate = true;
             }
 
-            float currXRange = AXIS_X_MIN + (AXIS_X_MAX - AXIS_X_MIN)
-                    * currX / mSurfaceSizeBuffer.x;
-            float currYRange = AXIS_Y_MAX - (AXIS_Y_MAX - AXIS_Y_MIN)
-                    * currY / mSurfaceSizeBuffer.y;
+            float currXRange = AXIS_X_MIN + (AXIS_X_MAX - AXIS_X_MIN) * currX /
+                    mSurfaceSizeBuffer.x;
+            float currYRange = AXIS_Y_MAX - (AXIS_Y_MAX - AXIS_Y_MIN) * currY /
+                    mSurfaceSizeBuffer.y;
             setViewportBottomLeft(currXRange, currYRange);
         }
 
@@ -457,15 +439,14 @@ public class LedSignView extends View {
             // double-touch).
             float newWidth = (1f - mZoomer.getCurrZoom()) * mScrollerStartViewport.width();
             float newHeight = (1f - mZoomer.getCurrZoom()) * mScrollerStartViewport.height();
-            float pointWithinViewportX = (mZoomFocalPoint.x - mScrollerStartViewport.left)
-                    / mScrollerStartViewport.width();
-            float pointWithinViewportY = (mZoomFocalPoint.y - mScrollerStartViewport.top)
-                    / mScrollerStartViewport.height();
-            mCurrentViewport.set(
-                    mZoomFocalPoint.x - newWidth * pointWithinViewportX,
-                    mZoomFocalPoint.y - newHeight * pointWithinViewportY,
-                    mZoomFocalPoint.x + newWidth * (1 - pointWithinViewportX),
-                    mZoomFocalPoint.y + newHeight * (1 - pointWithinViewportY));
+            float pointWithinViewportX = (mZoomFocalPoint.x - mScrollerStartViewport.left) /
+                    mScrollerStartViewport.width();
+            float pointWithinViewportY = (mZoomFocalPoint.y - mScrollerStartViewport.top) /
+                    mScrollerStartViewport.height();
+            mCurrentViewport.set(mZoomFocalPoint.x - newWidth * pointWithinViewportX,
+                    mZoomFocalPoint.y - newHeight * pointWithinViewportY, mZoomFocalPoint.x +
+                            newWidth * (1 - pointWithinViewportX), mZoomFocalPoint.y + newHeight *
+                            (1 - pointWithinViewportY));
             constrainViewport();
             needsInvalidate = true;
         }
@@ -474,7 +455,7 @@ public class LedSignView extends View {
             ViewCompat.postInvalidateOnAnimation(this);
         }
     }
-    
+
     /**
      * Sets the current viewport (defined by {@link #mCurrentViewport}) to the given
      * X and Y positions. Note that the Y value represents the topmost pixel position, and thus
@@ -495,32 +476,31 @@ public class LedSignView extends View {
 
         mCurrentViewport.set(x, y - curHeight, x + curWidth, y);
         ViewCompat.postInvalidateOnAnimation(this);
-    }    
-    
-    
+    }
+
     /**
      * Finds the chart point (i.e. within the chart's domain and range) represented by the
      * given pixel coordinates, if that pixel is within the chart region described by
      * {@link #mContentRect}. If the point is found, the "dest" argument is set to the point and
      * this function returns true. Otherwise, this function returns false and "dest" is unchanged.
      */
-/*
-    private boolean hitTest(float x, float y, PointF dest) {
-        if (!mContentRect.contains((int) x, (int) y)) {
-            return false;
-        }
+    /*
+        private boolean hitTest(float x, float y, PointF dest) {
+            if (!mContentRect.contains((int) x, (int) y)) {
+                return false;
+            }
 
-        dest.set(
-                mCurrentViewport.left
-                        + mCurrentViewport.width()
-                        * (x - mContentRect.left) / mContentRect.width(),
-                mCurrentViewport.top
-                        + mCurrentViewport.height()
-                        * (y - mContentRect.bottom) / -mContentRect.height());
-        return true;
-     }
-*/
-    
+            dest.set(
+                    mCurrentViewport.left
+                            + mCurrentViewport.width()
+                            * (x - mContentRect.left) / mContentRect.width(),
+                    mCurrentViewport.top
+                            + mCurrentViewport.height()
+                            * (y - mContentRect.bottom) / -mContentRect.height());
+            return true;
+         }
+    */
+
     /**
      * Ensures that current viewport is inside the viewport extremes defined by {@link #AXIS_X_MIN},
      * {@link #AXIS_X_MAX}, {@link #AXIS_Y_MIN} and {@link #AXIS_Y_MAX}.
@@ -528,192 +508,206 @@ public class LedSignView extends View {
     private void constrainViewport() {
         mCurrentViewport.left = Math.max(AXIS_X_MIN, mCurrentViewport.left);
         mCurrentViewport.top = Math.max(AXIS_Y_MIN, mCurrentViewport.top);
-        mCurrentViewport.bottom = Math.max(Math.nextUp(mCurrentViewport.top),
-                Math.min(AXIS_Y_MAX, mCurrentViewport.bottom));
-        mCurrentViewport.right = Math.max(Math.nextUp(mCurrentViewport.left),
-                Math.min(AXIS_X_MAX, mCurrentViewport.right));
-    }    
-    
-    private void onColorCtrlTouched(int x, int y) {
-		int nTotWidth  = (int)((mLedSign.getXRes()) * mIntZoomScale + 2);
-		int nXPos   = (mViewRect.width() - nTotWidth) / 2;
-		
-		int nX = (int)((mCurrentViewport.left + 1.0f) *  mLedSign.getXResVirtual());
-		nX += ((x - nXPos) / mIntZoomScale);
-		
-		if (nX == mPrevTouched)
-			return;
-		
-		mPrevTouched = nX;
-		
-		if (nX >= mLedSign.getBitmap().getWidth())
-			return;
-		
-		int nUsedCol = Color.BLACK; //LedSignBitmap.COLOR_OFF_LED;
-		for (int j = 0; j < mLedSign.getYRes(); j++) {
-			int pixel = mLedSign.getBitmap().getPixel(nX, j);
-			
-			if (pixel != Color.BLACK) {
-				nUsedCol = pixel;
-			}
-		}
-		
-		for (int j = 0; j < mLedSign.getYRes(); j++) {
-			int pixel = mLedSign.getBitmap().getPixel(nX, j);
-			if (mIntSelColorIdx == mLedSign.getInverseIndex()) {		//inverse
-				if (pixel == Color.BLACK && nUsedCol != Color.BLACK) {
-					mLedSign.getBitmap().setPixel(nX, j, nUsedCol);
-				}
-				else
-					mLedSign.getBitmap().setPixel(nX, j, Color.BLACK);
-			} 	else if (mIntSelColorIdx == mLedSign.getFillIndex()) {	//Fill
-				if (pixel == Color.BLACK) {
-					mLedSign.getBitmap().setPixel(nX, j, mIntSelColor);
-				}
-			} else if (mIntSelColorIdx == mLedSign.getFlashIndex()) {	// flash
-				if (pixel != Color.BLACK) {
-					int pix = mLedSign.getBitmap().getPixel(nX, j);
-					mLedSign.getBitmap().setPixel(nX, j, Color.argb(128, Color.red(pix), Color.green(pix), Color.blue(pix)));
-				}
-			}
-			else {
-				if (pixel != Color.BLACK)
-					mLedSign.getBitmap().setPixel(nX, j, mIntSelColor);
-			}
-		}
-		invalidate();
+        mCurrentViewport.bottom = Math.max(Math.nextUp(mCurrentViewport.top), Math.min(AXIS_Y_MAX,
+                mCurrentViewport.bottom));
+        mCurrentViewport.right = Math.max(Math.nextUp(mCurrentViewport.left), Math.min(AXIS_X_MAX,
+                mCurrentViewport.right));
     }
-    
+
+    private void onColorCtrlTouched(int x, int y) {
+        int nTotWidth = (int) ((mDisplay.getWidth()) * mIntZoomScale + 2);
+        int nXPos = (mViewRect.width() - nTotWidth) / 2;
+
+        int nX = (int) ((mCurrentViewport.left + 1.0f) * mDisplay.getVirtualWidth());
+        nX += ((x - nXPos) / mIntZoomScale);
+
+        if (nX == mPrevTouched)
+            return;
+
+        mPrevTouched = nX;
+
+        if (mDisplay == null)
+            return;
+        
+        if (nX >= mDisplay.getBitmap().getWidth())
+            return;
+
+        int nUsedCol = Color.BLACK; //LedSignBitmap.COLOR_OFF_LED;
+        for (int j = 0; j < mDisplay.getHeight(); j++) {
+            int pixel = mDisplay.getBitmap().getPixel(nX, j);
+
+            if (pixel != Color.BLACK) {
+                nUsedCol = pixel;
+            }
+        }
+
+        for (int j = 0; j < mDisplay.getHeight(); j++) {
+            int pixel = mDisplay.getBitmap().getPixel(nX, j);
+            if (mIntSelColorIdx == mDisplay.getInverseIndex()) { //inverse
+                if (pixel == Color.BLACK && nUsedCol != Color.BLACK) {
+                    mDisplay.getBitmap().setPixel(nX, j, nUsedCol);
+                } else
+                    mDisplay.getBitmap().setPixel(nX, j, Color.BLACK);
+            } else if (mIntSelColorIdx == mDisplay.getFillIndex()) { //Fill
+                if (pixel == Color.BLACK) {
+                    mDisplay.getBitmap().setPixel(nX, j, mIntSelColor);
+                }
+            } else if (mIntSelColorIdx == mDisplay.getFlashIndex()) { // flash
+                if (pixel != Color.BLACK) {
+                    int pix = mDisplay.getBitmap().getPixel(nX, j);
+                    mDisplay.getBitmap().setPixel(nX, j,
+                            Color.argb(128, Color.red(pix), Color.green(pix), Color.blue(pix)));
+                }
+            } else {
+                if (pixel != Color.BLACK)
+                    mDisplay.getBitmap().setPixel(nX, j, mIntSelColor);
+            }
+        }
+        invalidate();
+    }
+
     private void drawBitmap(Canvas canvas) {
 
-		// Matrix
-		Paint paint = new Paint();
-		int nYPos = MATRIX_Y_OFF;
-		int nTotWidth  = (int)((mLedSign.getXRes()) * mIntZoomScale + 2);
-		int nTotHeight = (int)((mLedSign.getYRes()) * mIntZoomScale + 2);
-		int nXPos = (mViewRect.width() - nTotWidth) / 2;
+        if (mDisplay == null)
+            return;
+        
+        // Matrix
+        Paint paint = new Paint();
+        int nYPos = MATRIX_Y_OFF;
+        int nTotWidth = (int) ((mDisplay.getWidth()) * mIntZoomScale + 2);
+        int nTotHeight = (int) ((mDisplay.getHeight()) * mIntZoomScale + 2);
+        int nXPos = (mViewRect.width() - nTotWidth) / 2;
 
-		// draw dark circle
-		canvas.drawColor(Color.WHITE);
-		paint.setColor(Color.BLACK);
-		canvas.drawRect(nXPos, nYPos, nXPos + nTotWidth, nYPos + nTotHeight, paint);
-		paint.setColor(LedSignBitmap.COLOR_OFF_LED);
-		int rad = mIntZoomScale / 2 - 1;
-		for (int j = 0; j < mLedSign.getYRes(); j++) {
-			int cy =  nYPos + (j * mIntZoomScale) + (mIntZoomScale / 2);
-			for (int i = 0; i < mLedSign.getXRes(); i++) {
-				int cx = nXPos + (i * mIntZoomScale) + (mIntZoomScale / 2);
-				canvas.drawCircle(cx, cy, rad, paint);
-			}
-		}
-		mTouchableRect.set(nXPos, nYPos, nXPos + nTotWidth, nYPos + nTotHeight);
-		
-		int nColY =  nYPos + (mLedSign.getYRes() * mIntZoomScale) + 
-				(mIntZoomScale / 2) + CTRL_COLOR_Y_OFF;
-		mColorCtrlRect.set(nXPos, nColY, nXPos + nTotWidth, nColY + CTRL_COLOR_Y_SIZE);
+        // draw dark circle
+        canvas.drawColor(Color.WHITE);
+        paint.setColor(Color.BLACK);
+        canvas.drawRect(nXPos, nYPos, nXPos + nTotWidth, nYPos + nTotHeight, paint);
+        paint.setColor(LedSignBitmap.COLOR_OFF_LED);
+        int rad = mIntZoomScale / 2 - 1;
+        for (int j = 0; j < mDisplay.getHeight(); j++) {
+            int cy = nYPos + (j * mIntZoomScale) + (mIntZoomScale / 2);
+            for (int i = 0; i < mDisplay.getWidth(); i++) {
+                int cx = nXPos + (i * mIntZoomScale) + (mIntZoomScale / 2);
+                canvas.drawCircle(cx, cy, rad, paint);
+            }
+        }
+        mTouchableRect.set(nXPos, nYPos, nXPos + nTotWidth, nYPos + nTotHeight);
 
-		// draw bitmap circle
-		if (mLedSign.getBitmap() == null) {
-			return;
-		}
+        int nColY = nYPos + (mDisplay.getHeight() * mIntZoomScale) + (mIntZoomScale / 2) +
+                CTRL_COLOR_Y_OFF;
+        mColorCtrlRect.set(nXPos, nColY, nXPos + nTotWidth, nColY + CTRL_COLOR_Y_SIZE);
 
-		int nX = (int)((mCurrentViewport.left + 1.0f) *  mLedSign.getXResVirtual());
-		if (nX >= mLedSign.getXResVirtual() - mLedSign.getXRes())
-			nX = mLedSign.getXResVirtual() - mLedSign.getXRes();
-		
-		int nY  = 14 + (int)((mCurrentViewport.top + 0.5f) *  mLedSign.getYResVirtual());
-		if (mVScrollLock == false && nY != mIntDispPos) {
-			mIntDispPos = nY;
-			mLedSign.setFontYPos(nY);
-		}
+        LogUtil.e("1 !!!!!");
+        // draw bitmap circle
+        if (mDisplay.getBitmap() == null) {
+            LogUtil.e("2 !!!!!");
+            return;
+        }
 
-		if (mPlaying == true)
-			mPlayCnt++;
-		
-		for (int i = 0; i < mLedSign.getXRes(); i++) {
-			int cx = nXPos + (i * mIntZoomScale) + (mIntZoomScale / 2);
-			int nUsedCol = Color.BLACK;
-			
-			for (int j = 0; j < mLedSign.getYRes(); j++) {
-				int cy =  nYPos + (j * mIntZoomScale) + (mIntZoomScale / 2);
-				int pixel = mLedSign.getBitmap().getPixel(nX + i, j);
-				
-				if (Color.alpha(pixel) == 128) {
-					if (mPlaying == true) {
-						if ((mPlayCnt % 10) < 5) {
-							paint.setARGB(255, Color.red(pixel), Color.green(pixel), Color.blue(pixel));
-						} else {
-							paint.setColor(LedSignBitmap.COLOR_OFF_LED);
-						}
-						canvas.drawCircle(cx, cy, rad, paint);
-						
-					} else {
-						RectF rect = new RectF(nXPos + (i * mIntZoomScale), nYPos + (j * mIntZoomScale), 
-								nXPos + (i * mIntZoomScale) + mIntZoomScale, nYPos + (j * mIntZoomScale) + mIntZoomScale);
-	
-						paint.setARGB(255, Color.red(pixel), Color.green(pixel), Color.blue(pixel));
-						canvas.drawArc(rect, 270, 180, true, paint);
-						
-						paint.setColor(LedSignBitmap.COLOR_OFF_LED);
-						canvas.drawArc(rect, 90, 180, true, paint);
-					}
-					nUsedCol = pixel;
-				} else if (pixel != Color.BLACK) {
-					paint.setColor(pixel);
-					canvas.drawCircle(cx, cy, rad, paint);
-					nUsedCol = pixel;
-				}
-			}
-			
-			if (mPlaying == false) {
-				//if (nUsedCol != Color.BLACK)
-				//	paint.setColor(LedSignBitmap.COLOR_OFF_LED);
-				//else
-					paint.setColor(nUsedCol);
-				cx -= (mIntZoomScale / 2);
-				nColY =  nYPos + (mLedSign.getYRes() * mIntZoomScale) + 
-						(mIntZoomScale / 2) + CTRL_COLOR_Y_OFF;
-				canvas.drawRect(cx + 1, nColY, 
-						cx + mIntZoomScale - 1, nColY + CTRL_COLOR_Y_SIZE, paint);
-			}
-		}
-		paint.setColor(Color.BLACK);
-		int xpos = (mViewRect.width()) / 2 - (mLedSign.getBitmap().getWidth() / 2);
-		canvas.drawBitmap(mLedSign.getBitmap(), xpos, 5, paint);
+        int nX = (int) ((mCurrentViewport.left + 1.0f) * mDisplay.getVirtualWidth());
+        if (nX >= mDisplay.getVirtualWidth() - mDisplay.getWidth())
+            nX = mDisplay.getVirtualWidth() - mDisplay.getWidth();
+
+        int nY = 14 + (int) ((mCurrentViewport.top + 0.5f) * mDisplay.getVirtualHeight());
+        if (mVScrollLock == false && nY != mIntDispPos) {
+            mIntDispPos = nY;
+            mDisplay.setFontYPos(nY);
+        }
+
+        if (mPlaying == true)
+            mPlayCnt++;
+
+        LogUtil.e("3 !!!!!");
+        for (int i = 0; i < mDisplay.getWidth(); i++) {
+            int cx = nXPos + (i * mIntZoomScale) + (mIntZoomScale / 2);
+            int nUsedCol = Color.BLACK;
+
+            for (int j = 0; j < mDisplay.getHeight(); j++) {
+                int cy = nYPos + (j * mIntZoomScale) + (mIntZoomScale / 2);
+                int pixel = mDisplay.getBitmap().getPixel(nX + i, j);
+
+                if (Color.alpha(pixel) == 128) {
+                    if (mPlaying == true) {
+                        if ((mPlayCnt % 10) < 5) {
+                            paint.setARGB(255, Color.red(pixel), Color.green(pixel), Color
+                                    .blue(pixel));
+                        } else {
+                            paint.setColor(LedSignBitmap.COLOR_OFF_LED);
+                        }
+                        canvas.drawCircle(cx, cy, rad, paint);
+
+                    } else {
+                        RectF rect = new RectF(nXPos + (i * mIntZoomScale), nYPos +
+                                (j * mIntZoomScale), nXPos + (i * mIntZoomScale) + mIntZoomScale,
+                                nYPos + (j * mIntZoomScale) + mIntZoomScale);
+
+                        paint.setARGB(255, Color.red(pixel), Color.green(pixel), Color.blue(pixel));
+                        canvas.drawArc(rect, 270, 180, true, paint);
+
+                        paint.setColor(LedSignBitmap.COLOR_OFF_LED);
+                        canvas.drawArc(rect, 90, 180, true, paint);
+                    }
+                    nUsedCol = pixel;
+                } else if (pixel != Color.BLACK) {
+                    paint.setColor(pixel);
+                    canvas.drawCircle(cx, cy, rad, paint);
+                    nUsedCol = pixel;
+                }
+            }
+
+            if (mPlaying == false) {
+                //if (nUsedCol != Color.BLACK)
+                //	paint.setColor(LedSignBitmap.COLOR_OFF_LED);
+                //else
+                paint.setColor(nUsedCol);
+                cx -= (mIntZoomScale / 2);
+                nColY = nYPos + (mDisplay.getHeight() * mIntZoomScale) + (mIntZoomScale / 2) +
+                        CTRL_COLOR_Y_OFF;
+                canvas.drawRect(cx + 1, nColY, cx + mIntZoomScale - 1, nColY + CTRL_COLOR_Y_SIZE,
+                        paint);
+            }
+        }
+        paint.setColor(Color.BLACK);
+        int xpos = (mViewRect.width()) / 2 - (mDisplay.getBitmap().getWidth() / 2);
+        canvas.drawBitmap(mDisplay.getBitmap(), xpos, 5, paint);
     }
-    
-    private Timer mRefreshTimer;
-    private RefreshTask mRefreshTask;
-    private static Handler mTimerHandler;
-    private int mIntPlaySpeed = 0;
-    
-    private final class HandlerExtension extends Handler {
-		@Override
-		public void handleMessage(Message msg) {
-		    super.handleMessage(msg);
-		    if (mPlaying == true) {
-		    	mLedSign.shiftBitmap2Left();
-		    	invalidate();
-		    }
-		}
-	}
 
-	class RefreshTask extends TimerTask {
+    private Timer          mRefreshTimer;
+    private RefreshTask    mRefreshTask;
+    private static Handler mTimerHandler;
+    private int            mIntPlaySpeed = 0;
+
+    private final class HandlerExtension extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            if (mDisplay == null)
+                return;
+            
+            if (mPlaying == true) {
+                mDisplay.shiftBitmap2Left();
+                invalidate();
+            }
+        }
+    }
+
+    class RefreshTask extends TimerTask {
         private int count = 0;
+
         public void run() {
-        	int mod = 9 - mIntPlaySpeed;
+            int mod = 9 - mIntPlaySpeed;
             count++;
             if (count % mod == 0)
-            	mTimerHandler.sendEmptyMessage(count);
+                mTimerHandler.sendEmptyMessage(count);
         }
     }
 
     public void startPlay() {
-    	mLedSign.saveBackup();
-    	mTimerHandler = new HandlerExtension();
+        mDisplay.saveBackup();
+        mTimerHandler = new HandlerExtension();
         mRefreshTimer = new Timer();
         mRefreshTask = new RefreshTask();
-        
+
         mRefreshTimer.schedule(mRefreshTask, 0, 20);
         mPlaying = true;
     }
@@ -726,47 +720,46 @@ public class LedSignView extends View {
         }
         mRefreshTask = null;
         mPlaying = false;
-        mLedSign.restoreBackup();
+        if (mDisplay == null)
+            return;
+        
+        mDisplay.restoreBackup();
         invalidate();
     }
-    
+
     public void setPlaySpeed(int speed) {
-    	mIntPlaySpeed = speed;
+        mIntPlaySpeed = speed;
     }
-    
+
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
-        mViewRect.set(
-                getPaddingLeft(),
-                getPaddingTop(),
-                getWidth() - getPaddingRight(),
+        mViewRect.set(getPaddingLeft(), getPaddingTop(), getWidth() - getPaddingRight(),
                 getHeight() - getPaddingBottom());
-        int wr = mViewRect.width() / mLedSign.getXRes();
-        int hr = (mViewRect.height() - (CTRL_COLOR_Y_SIZE + CTRL_COLOR_Y_OFF + MATRIX_Y_OFF)) / mLedSign.getYRes();
+        if (mDisplay == null)
+            return;
+        int wr = mViewRect.width() / mDisplay.getWidth();
+        int hr = (mViewRect.height() - (CTRL_COLOR_Y_SIZE + CTRL_COLOR_Y_OFF + MATRIX_Y_OFF)) /
+                mDisplay.getHeight();
         mIntZoomScale = Math.min(wr, hr);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int minChartSize = 0;
-        setMeasuredDimension(
-                Math.max(getSuggestedMinimumWidth(),
-                        resolveSize(minChartSize + getPaddingLeft() + getPaddingRight(),
-                                widthMeasureSpec)),
-                Math.max(getSuggestedMinimumHeight(),
-                        resolveSize(minChartSize + getPaddingTop() + getPaddingBottom(),
-                                heightMeasureSpec)));
-    }    
-    
-	@Override
-	protected void onDraw(Canvas canvas) {
+        setMeasuredDimension(Math.max(getSuggestedMinimumWidth(), resolveSize(minChartSize +
+                getPaddingLeft() + getPaddingRight(), widthMeasureSpec)), Math.max(
+                getSuggestedMinimumHeight(), resolveSize(minChartSize + getPaddingTop() +
+                        getPaddingBottom(), heightMeasureSpec)));
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         // Clips the next few drawing operations to the content area
         //int clipRestoreCount = canvas.save();
         canvas.clipRect(mViewRect);
         drawBitmap(canvas);
-	}
+    }
 
-		
 }
